@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master1" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master1" ]
 
 jobs:
   build:
@@ -20,5 +20,5 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config Release
 
     - name: Test
-      working-directory: ${{github.workspace}}/build
+     working-directory: ${{github.workspace}}/build
       run: ctest -C Release --output-on-failure
