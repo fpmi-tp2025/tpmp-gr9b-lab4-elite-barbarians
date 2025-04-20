@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "clepfeed-development" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "clepfeed-development" ]
+    branches: [ "master" ]
 
 jobs:
   build:
