@@ -2,7 +2,7 @@ CC = gcc
 CXX = g++
 
 CFLAGS = -Wall
-CXXFLAGS = -Wall -std=c++17 -I./src
+CXXFLAGS = -Wall -std=c++17 -I./src -I/usr/include
 LDFLAGS = -pthread
 
 SRC = src
