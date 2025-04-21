@@ -4,8 +4,7 @@
 #include "sql.h"
 using namespace std;
 
-// в sql.h только скрипт, который создает бд
-
+// sql.h contains only the script that creates the database
 
 sqlite3* db;
 char* errMsg = nullptr;
@@ -17,12 +16,12 @@ int current_broker_id = -1;
 void executeSQL(const string& sql) {
     int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
-        cerr << "Ошибка SQL: " << errMsg << endl;
+        cerr << "SQL Error: " << errMsg << endl;
         sqlite3_free(errMsg);
         errMsg = nullptr;
     }
     else {
-        cout << "Операция выполнена успешно.\n";
+        cout << "Operation completed successfully.\n";
     }
 }
 
@@ -36,7 +35,6 @@ int callback(void* NotUsed, int argc, char** argv, char** azColName) {
 
 void initTables() {
     string sql = get_script();
-
     executeSQL(sql);
 }
 
@@ -79,7 +77,6 @@ void showSalesByProduct(const string& startDate, const string& endDate) {
 }
 
 void updateBrokerStats(int broker_id, int quantity, double amount) {
-    
     string sql = R"(
         UPDATE BrokerStats
         SET total_units_sold = total_units_sold + )" + to_string(quantity) + R"(,
@@ -87,7 +84,6 @@ void updateBrokerStats(int broker_id, int quantity, double amount) {
         WHERE broker_id = )" + to_string(broker_id) + ";";
     cout << sql << endl;
     executeSQL(sql);
-    
 }
 
 void cleanupDealsBeforeDate(const string& date) {
@@ -117,9 +113,9 @@ void showDealsOnDate(const string& date) {
 
 bool loginUser() {
     string username, password;
-    cout << "Введите логин: ";
+    cout << "Enter login: ";
     cin >> username;
-    cout << "Введите пароль: ";
+    cout << "Enter password: ";
     cin >> password;
 
     string sql = "SELECT user_id, is_admin, broker_id FROM Users WHERE username = ? AND password = ?;";
@@ -134,13 +130,13 @@ bool loginUser() {
         is_admin = sqlite3_column_int(stmt, 1);
         current_broker_id = sqlite3_column_type(stmt, 2) != SQLITE_NULL ? sqlite3_column_int(stmt, 2) : -1;
 
-        cout << "Успешный вход. ";
-        cout << (is_admin ? "[Администратор]" : "[Брокер]") << "\n";
+        cout << "Login successful. ";
+        cout << (is_admin ? "[Administrator]" : "[Broker]") << "\n";
         sqlite3_finalize(stmt);
         return true;
     }
     else {
-        cout << "Неверные логин или пароль.\n";
+        cout << "Invalid username or password.\n";
     }
 
     sqlite3_finalize(stmt);
@@ -149,9 +145,8 @@ bool loginUser() {
 
 void deleteUser() {
     string username;
-    cout << "Введите имя пользователя, которого нужно удалить: ";
+    cout << "Enter username to delete: ";
     cin >> username;
-    
 
     string sql_select = "SELECT user_id, broker_id, is_admin FROM Users WHERE username = ?;";
     sqlite3_stmt* stmt;
@@ -160,7 +155,7 @@ void deleteUser() {
 
     int rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
-        cout << "Пользователь не найден.\n";
+        cout << "User not found.\n";
         sqlite3_finalize(stmt);
         return;
     }
@@ -171,7 +166,7 @@ void deleteUser() {
     sqlite3_finalize(stmt);
 
     if (broker_id == -1) {
-        cout << "Админа удалить нельзя\n";
+        cout << "Cannot delete admin\n";
         return;
     }
 
@@ -185,38 +180,36 @@ void deleteUser() {
         executeSQL(sql_delete_broker);
     }
 
-    cout << "Пользователь успешно удалён.\n";
+    cout << "User successfully deleted.\n";
 }
 
 void addDealByAdmin() {
-    setlocale(LC_ALL, "ru");
+    cout << "\n== Add Deal ==\n";
 
-    cout << "\n== Добавление сделки ==\n";
-
-    cout << "\nСписок товаров:\n";
+    cout << "\nProducts list:\n";
     string sql = R"(SELECT product_id, name, type, unit_price, quantity_supplied FROM Products;)";
     sqlite3_exec(db, sql.c_str(), callback, nullptr, &errMsg);
 
-    cout << "\nСписок брокеров:\n";
+    cout << "\nBrokers list:\n";
     sql = R"(SELECT broker_id, surname FROM Brokers;)";
     sqlite3_exec(db, sql.c_str(), callback, nullptr, &errMsg);
 
-    cout << "\nСписок фирм-покупателей:\n";
+    cout << "\nBuyer firms list:\n";
     sql = R"(SELECT firm_id, name FROM Firms WHERE is_supplier = 0;)";
     sqlite3_exec(db, sql.c_str(), callback, nullptr, &errMsg);
 
     int product_id, broker_id, buyer_id, quantity;
     string deal_date;
 
-    cout << "\nВведите ID товара: ";
+    cout << "\nEnter product ID: ";
     cin >> product_id;
-    cout << "Введите ID брокера: ";
+    cout << "Enter broker ID: ";
     cin >> broker_id;
-    cout << "Введите ID фирмы-покупателя: ";
+    cout << "Enter buyer firm ID: ";
     cin >> buyer_id;
-    cout << "Введите дату сделки (YYYY-MM-DD): ";
+    cout << "Enter deal date (YYYY-MM-DD): ";
     cin >> deal_date;
-    cout << "Введите количество проданного товара: ";
+    cout << "Enter quantity sold: ";
     cin >> quantity;
 
     double unit_price = 0;
@@ -231,14 +224,14 @@ void addDealByAdmin() {
         quantity_available = sqlite3_column_int(stmt, 1);
     }
     else {
-        cout << "Ошибка: товар не найден.\n";
+        cout << "Error: product not found.\n";
         sqlite3_finalize(stmt);
         return;
     }
     sqlite3_finalize(stmt);
 
     if (quantity > quantity_available) {
-        cout << "Недостаточно товара на складе. Доступно: " << quantity_available << "\n";
+        cout << "Insufficient product in stock. Available: " << quantity_available << "\n";
         return;
     }
 
@@ -255,7 +248,7 @@ void addDealByAdmin() {
     sqlite3_bind_int(stmt, 5, buyer_id);
 
     if (sqlite3_step(stmt) == SQLITE_DONE) {
-        cout << "Сделка успешно добавлена.\n";
+        cout << "Deal successfully added.\n";
 
         string update_sql = "UPDATE Products SET quantity_supplied = quantity_supplied - ? WHERE product_id = ?;";
         sqlite3_stmt* update_stmt;
@@ -269,24 +262,23 @@ void addDealByAdmin() {
         updateBrokerStats(broker_id, quantity, total);
     }
     else {
-        cout << "Ошибка добавления сделки: " << sqlite3_errmsg(db) << "\n";
+        cout << "Error adding deal: " << sqlite3_errmsg(db) << "\n";
     }
     sqlite3_finalize(stmt);
 }
 
 void adminMenu() {
-    setlocale(LC_ALL, "ru");
     int choice;
     do {
-        cout << "\n== Меню администратора ==\n";
-        cout << "1. Список брокеров\n";
-        cout << "2. Список товаров\n";
-        cout << "3. Список сделок\n";
-        cout << "4. Статистика продаж по товарам за период\n";
-        cout << "5. Удалить пользователя\n";
-        cout << "6. Добавить сделку\n";
-        cout << "0. Выход\n";
-        cout << "Выбор: ";
+        cout << "\n== Administrator Menu ==\n";
+        cout << "1. Brokers list\n";
+        cout << "2. Products list\n";
+        cout << "3. Deals list\n";
+        cout << "4. Sales statistics by product for period\n";
+        cout << "5. Delete user\n";
+        cout << "6. Add deal\n";
+        cout << "0. Exit\n";
+        cout << "Choice: ";
         cin >> choice;
 
         if (choice == 1) {
@@ -300,9 +292,9 @@ void adminMenu() {
         }
         else if (choice == 4) {
             string from, to;
-            cout << "Введите дату начала (YYYY-MM-DD): ";
+            cout << "Enter start date (YYYY-MM-DD): ";
             cin >> from;
-            cout << "Введите дату конца (YYYY-MM-DD): ";
+            cout << "Enter end date (YYYY-MM-DD): ";
             cin >> to;
             showSalesByProduct(from, to);
         }
@@ -312,8 +304,6 @@ void adminMenu() {
         else if (choice == 6) {
             addDealByAdmin();
         }
-
-
     } while (choice != 0);
 }
 
@@ -333,7 +323,7 @@ void showTopProductTypeSalesByBuyer() {
     int rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_ROW) {
-        cout << "Нет данных по сделкам.\n";
+        cout << "No deal data available.\n";
         sqlite3_finalize(stmt);
         return;
     }
@@ -341,7 +331,7 @@ void showTopProductTypeSalesByBuyer() {
     string top_type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
     sqlite3_finalize(stmt);
 
-    cout << "Наиболее популярный вид товара: " << top_type << "\n";
+    cout << "Most popular product type: " << top_type << "\n";
 
     string sql_report = R"(
         SELECT F.name AS buyer_name,
@@ -360,7 +350,7 @@ void showTopProductTypeSalesByBuyer() {
 
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
-        cout << "Нет продаж по данному виду товара.\n";
+        cout << "No sales for this product type.\n";
     }
 
     while (rc == SQLITE_ROW) {
@@ -368,9 +358,9 @@ void showTopProductTypeSalesByBuyer() {
         int qty = sqlite3_column_int(stmt, 1);
         double total = sqlite3_column_double(stmt, 2);
 
-        cout << "Покупатель: " << firm << "\n";
-        cout << "Количество: " << qty << "\n";
-        cout << "Сумма: " << total << "\n";
+        cout << "Buyer: " << firm << "\n";
+        cout << "Quantity: " << qty << "\n";
+        cout << "Amount: " << total << "\n";
         cout << "------------------------\n";
 
         rc = sqlite3_step(stmt);
@@ -379,23 +369,20 @@ void showTopProductTypeSalesByBuyer() {
     sqlite3_finalize(stmt);
 }
 
-void brokerMenu() 
-{
-    setlocale(LC_ALL, "ru");
-
+void brokerMenu() {
     int choice;
     do {
-        cout << "\n== Меню брокера ==\n";
-        cout << "1. Мои сделки за дату\n";
-        cout << "2. Все сделки за дату\n";
-        cout << "3. Отчёт по самому популярному виду товара\n";
-        cout << "0. Выход\n";
-        cout << "Выбор: ";
+        cout << "\n== Broker Menu ==\n";
+        cout << "1. My deals for date\n";
+        cout << "2. All deals for date\n";
+        cout << "3. Report on most popular product type\n";
+        cout << "0. Exit\n";
+        cout << "Choice: ";
         cin >> choice;
 
         if (choice == 1) {
             string date;
-            cout << "Введите дату (YYYY-MM-DD): ";
+            cout << "Enter date (YYYY-MM-DD): ";
             cin >> date;
 
             string sql = R"(
@@ -410,7 +397,7 @@ void brokerMenu()
         }
         else if (choice == 2) {
             string date;
-            cout << "Введите дату (YYYY-MM-DD): ";
+            cout << "Enter date (YYYY-MM-DD): ";
             cin >> date;
 
             string sql = R"(
@@ -438,16 +425,16 @@ void brokerMenu()
 
 void registerUser() {
     int type;
-    cout << "\nКого вы хотите зарегистрировать?\n";
-    cout << "1. Администратора\n";
-    cout << "2. Брокера\n";
-    cout << "Выбор: ";
+    cout << "\nWho do you want to register?\n";
+    cout << "1. Administrator\n";
+    cout << "2. Broker\n";
+    cout << "Choice: ";
     cin >> type;
 
     string username, password;
-    cout << "Введите имя пользователя: ";
+    cout << "Enter username: ";
     cin >> username;
-    cout << "Введите пароль: ";
+    cout << "Enter password: ";
     cin >> password;
 
     if (type == 1) {
@@ -458,24 +445,23 @@ void registerUser() {
         sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_STATIC);
 
         if (sqlite3_step(stmt) == SQLITE_DONE) {
-            cout << "Администратор зарегистрирован.\n";
+            cout << "Administrator registered.\n";
         }
         else {
-            cout << "Ошибка регистрации: " << sqlite3_errmsg(db) << "\n";
+            cout << "Registration error: " << sqlite3_errmsg(db) << "\n";
         }
 
         sqlite3_finalize(stmt);
     }
     else if (type == 2) {
-        
         string surname, address;
         int birth_year;
-        cout << "Введите фамилию брокера: ";
+        cout << "Enter broker's surname: ";
         cin >> surname;
-        cout << "Введите адрес: ";
+        cout << "Enter address: ";
         cin.ignore();
         getline(cin, address);
-        cout << "Введите год рождения: ";
+        cout << "Enter birth year: ";
         cin >> birth_year;
 
         string sql_broker = "INSERT INTO Brokers (surname, address, birth_year) VALUES (?, ?, ?);";
@@ -497,35 +483,33 @@ void registerUser() {
             sqlite3_bind_int(stmt_user, 3, broker_id);
 
             if (sqlite3_step(stmt_user) == SQLITE_DONE) {
-                cout << "Брокер и пользователь успешно зарегистрированы.\n";
+                cout << "Broker and user successfully registered.\n";
             }
             else {
-                cout << "Ошибка регистрации пользователя: " << sqlite3_errmsg(db) << "\n";
+                cout << "User registration error: " << sqlite3_errmsg(db) << "\n";
             }
             updateBrokerStats(broker_id, 0, 0);
             sqlite3_finalize(stmt_user);
         }
         else {
-            cout << "Ошибка регистрации брокера: " << sqlite3_errmsg(db) << "\n";
+            cout << "Broker registration error: " << sqlite3_errmsg(db) << "\n";
             sqlite3_finalize(stmt_broker);
         }
-        
     }
 }
 
 int main() {
-    setlocale(LC_ALL, "ru");
     int rc = sqlite3_open("trading.db", &db);
     if (rc) {
-        cerr << "Ошибка открытия БД: " << sqlite3_errmsg(db) << endl;
+        cerr << "Database opening error: " << sqlite3_errmsg(db) << endl;
         return 1;
     }
 
-    cout << "=== Торговая система ===\n";
+    cout << "=== Trading System ===\n";
 
     int choice;
     do {
-        cout << "\n1. Войти\n2. Зарегистрироваться\n0. Выход\nВыбор: ";
+        cout << "\n1. Login\n2. Register\n0. Exit\nChoice: ";
         cin >> choice;
 
         if (choice == 1) {
